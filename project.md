@@ -90,3 +90,21 @@ Autostart no login do usuário (atalho na pasta Startup).
 - Pasta portátil: `LGOledCompanion.exe` + `config.json` (depois do primeiro Salvar)
 - ImageSharp só para decodificar WebP
 - Log em disco apenas com `Modo_Debug` ligado
+- ImageSharp 3.x (Apache) só para WebP
+
+## Como executar
+
+Na pasta do repositório:
+
+```
+dotnet test
+dotnet run --project src/LGOledCompanion
+```
+
+Publicar o exe único self-contained:
+
+```
+dotnet publish src/LGOledCompanion -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+```
+
+O `config.json` só aparece ao lado do exe depois de Salvar no settings. No primeiro uso, abra o ícone da bandeja → Settings, aponte a pasta de fotos e o `LGTVcli.exe`, e desligue o gerenciamento automático do LGTVCompanion.

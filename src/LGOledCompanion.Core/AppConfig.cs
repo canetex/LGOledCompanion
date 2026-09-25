@@ -1,0 +1,16 @@
+// AppConfig.cs
+
+namespace LGOledCompanion.Core;
+
+public sealed class AppConfig
+{
+    public int Tempo_Inatividade { get; set; } = 5;
+    public int Tempo_Transicao { get; set; } = 10;
+    public int Opacidade_Overlay { get; set; } = 0;
+    public string Pasta_Fotos { get; set; } = string.Empty;
+    public string Horario_Noite_Inicio { get; set; } = "23:00";
+    public string Horario_Noite_Fim { get; set; } = "07:00";
+    public string Device_WebOS { get; set; } = "Device1";
+    public string Caminho_LGTVcli { get; set; } = @"C:\Program Files\LGTV Companion\LGTVcli.exe";
+    public bool Modo_Debug { get; set; }
+}
