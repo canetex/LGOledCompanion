@@ -1,39 +1,92 @@
-# Smart Photo Screensaver (Protetor de Tela Inteligente)
+# LGOledCompanion
 
-## 📌 Visão Geral
-Uma aplicação de desktop leve e inteligente que funciona como um protetor de tela personalizado. Ao invés de apenas exibir fotos, a aplicação roda silenciosamente em segundo plano, monitora a inatividade do sistema com inteligência (evitando interrupções durante o consumo de mídia) e oferece recursos avançados de economia de energia, incluindo o desligamento de monitores baseado em horários.
+App pessoal de desktop Windows: slideshow de fotos de dia e proteção da OLED de noite. Os dois jobs são first-class.
 
-## ✨ Funcionalidades Principais
+Este app é a única política de idle/tela desta máquina. O screensaver e o “apagar tela” do Windows ficam desligados. Sleep/hibernate continua com o plano de energia do SO.
 
-*   **Execução em Segundo Plano:** O aplicativo não polui a barra de tarefas principal. Ele é minimizado para a Bandeja do Sistema (System Tray / Taskbar) e roda silenciosamente como um serviço de background.
-*   **Apresentação de Fotos em Tela Cheia:** Após um período configurável de inatividade (idle), o sistema inicia um slideshow em tela cheia (modo protetor de tela).
-*   **Diretório Customizável:** As imagens exibidas no slideshow são carregadas a partir de uma pasta local definida pelo usuário nas configurações.
-*   **Controle de Brilho via Overlay:** Possibilidade de configurar uma camada preta (overlay) translúcida por cima das fotos. Isso permite reduzir o brilho geral da tela sem alterar as configurações físicas do monitor, ideal para ambientes escuros.
-*   **Modo de Supressão Inteligente (Media-Aware):** A aplicação detecta se o usuário está assistindo a vídeos (YouTube, filmes, Netflix, etc.) no navegador ou em players de mídia, impedindo que o protetor de tela seja ativado de forma indevida.
-*   **Despertar Instantâneo (Instant Wake):** Ao menor movimento do mouse, clique ou pressionamento de qualquer tecla, o protetor de tela é imediatamente encerrado, retornando o computador ao estado normal de uso sem engasgos.
-*   **Desligamento Agendado do Monitor:** Em vez de exibir o protetor de tela, é possível configurar um intervalo de horário específico (ex: madrugada) onde a inatividade acionará o desligamento real do monitor. 
-    *   *Nota de Integração:* Este recurso pode ser utilizado em conjunto com ferramentas como o [LGTVCompanion](https://github.com/JPersson77/LGTVCompanion) para controlar telas OLED e TVs, evitando burn-in e economizando energia.
+Nome único em exe, bandeja, título da janela e mutex: `LGOledCompanion`.
 
-## ⚙️ Configurações Disponíveis
+## Fora do v1
 
-A aplicação possui um menu de configurações acessível pelo ícone na bandeja do sistema, permitindo ajustar os seguintes parâmetros:
+- Reimplementar pairing, WOL ou websocket WebOS
+- Apagar displays pelo Windows
+- Heurística de processo/janela para detectar mídia
+- Overlay em cima de fullscreen preto
+- Foto diferente por tela
+- Impedir sleep do PC
+- Persistir pausa entre reinícios
+- Instalador / distribuição pública
 
-- `Tempo_Inatividade`: Tempo em minutos até a ativação do protetor (ex: 5 minutos).
-- `Pasta_Fotos`: Caminho do diretório local contendo as imagens (ex: `C:\Imagens\Screensaver`).
-- `Tempo_Transicao`: Tempo de exibição de cada foto no slideshow (ex: 10 segundos).
-- `Opacidade_Overlay`: Nível de escurecimento da tela de 0% (desativado) a 90% (muito escuro).
-- `Horario_Desligar_Monitor_Inicio`: Horário de início para a regra de desligamento do monitor (ex: 23:00).
-- `Horario_Desligar_Monitor_Fim`: Horário de fim para a regra de desligamento do monitor (ex: 07:00).
+## Comportamento
 
-## 🛠️ Sugestões de Arquitetura e Tecnologias (Para o Desenvolvedor)
+### Idle
 
-Caso esteja decidindo como construir a aplicação, aqui estão algumas sugestões:
+- Atividade = último mouse/teclado via `GetLastInputInfo`.
+- Após `Tempo_Inatividade` sem input, o app age (slideshow de dia ou `screenoff` de noite), salvo bloqueio.
+- Bloqueios (nenhum slideshow, nenhum `screenoff` automático):
+  - Power Request `Display Required` (YouTube/Netflix/player em fullscreen)
+  - Janela de settings aberta
+  - Pausa na bandeja
+- Wake: qualquer input encerra o slideshow na hora. De noite, manda `screenon`.
+- Sleep do Windows: o app não mexe. No resume, fecha slideshow se houver e manda `screenon`.
 
-*   **Linguagem/Framework:** 
-    *   *C# (.NET / WPF):* Excelente para integração profunda com as APIs do Windows (detectar inatividade real, modo tela cheia, system tray).
-    *   *Python (PyQt/Tkinter + pynput):* Rápido para prototipar e possui bibliotecas fáceis para capturar inatividade e desenhar janelas fullscreen.
-    *   *Electron:* Bom se você quiser usar tecnologias web (HTML/CSS/JS) para desenhar a interface de configurações e o slideshow, mas pode consumir mais memória RAM.
-*   **Detecção de Mídia (Não interromper vídeos):** No Windows, pode ser feito monitorando a API `SystemParametersInfo` ou verificando o status de "Display Required" do sistema operativo (que o navegador/player de vídeo ativa quando está em tela cheia/reproduzindo).
+### Dia vs noite
 
-## 🚀 Como Executar
-*(Esta seção será preenchida após o desenvolvimento da aplicação, contendo os passos de instalação e execução).*
+- **Dia:** slideshow em todas as telas ligadas ao Windows, a mesma foto ao mesmo tempo. TV ligada.
+- **Noite:** sem slideshow e sem janela preta. Só `-screenoff` no device WebOS configurado. Os outros monitores ficam como estão.
+- Se o idle atravessar a fronteira do horário, troca na hora. Se ainda estiver idle às 07:00: `-screenon` + slideshow.
+- Se `Horario_Noite_Inicio` > `Horario_Noite_Fim`, o intervalo atravessa meia-noite (ex.: 23:00–07:00).
+- Se início == fim, o modo noturno está desligado.
+
+### TV (WebOS)
+
+- [LGTVCompanion](https://github.com/JPersson77/LGTVCompanion) instalado, gerenciamento automático **desligado**.
+- Este app chama `LGTVcli.exe`:
+  - noite / idle noturno: `-screenoff`
+  - wake e resume: `-screenon`
+- O alvo é o **device** do LGTVCompanion (`Device1` ou nome amigável), não o índice de display do Windows.
+- Falha da CLI: 3 retries com backoff, balloon na bandeja, nova tentativa no próximo ciclo de idle. O slideshow de dia não depende da CLI.
+- **Testar TV** (bandeja): `-screenoff` ~3 s e depois `-screenon`. Ignora `Display Required` e settings aberto. Fica desabilitado se o app estiver pausado.
+
+### Slideshow e fotos
+
+- Pasta local, busca recursiva.
+- Extensões: `jpg`, `jpeg`, `png`, `webp`, `bmp`.
+- Ordem aleatória a cada ciclo. Respeita orientação EXIF.
+- WebP via ImageSharp (WPF não decodifica WebP nativo).
+- Overlay preto 0–90% só em cima de foto. Fullscreen preto não leva overlay.
+- Pasta vazia, path inexistente ou todas as imagens ilegíveis: de dia, fullscreen preto em todas as telas. Arquivo isolado corrompido é pulado.
+- Plug/unplug de monitor no meio do slideshow é ignorado. Janela órfã some só no wake.
+
+## Bandeja
+
+Menu: Settings, Pausar/Retomar, Testar TV, Sair.
+
+- **Pausa:** bloqueia slideshow e `screenoff` até Retomar. Só em memória; o próximo start (login ou Sair+abrir) volta ativo.
+- Instância única (mutex). Um segundo start só foca o settings.
+
+## Configuração
+
+Arquivo `config.json` **ao lado do exe**. Só é gravado quando o usuário clica Salvar. Sem arquivo, o app sobe com defaults em memória e não cria o JSON sozinho.
+
+| Chave | Default | Significado |
+| --- | --- | --- |
+| `Tempo_Inatividade` | 5 minutos | Idle até agir |
+| `Tempo_Transicao` | 10 segundos | Tempo de tela de cada foto (corte seco, sem fade) |
+| `Opacidade_Overlay` | 0% | Escurecimento 0–90% só sobre foto |
+| `Pasta_Fotos` | vazio | Pasta recursiva de imagens |
+| `Horario_Noite_Inicio` | 23:00 | Início da janela noturna |
+| `Horario_Noite_Fim` | 07:00 | Fim da janela noturna |
+| `Device_WebOS` | `Device1` | Device do LGTVCompanion |
+| `Caminho_LGTVcli` | `C:\Program Files\LGTV Companion\LGTVcli.exe` | Path do CLI |
+| `Modo_Debug` | off | Se on, grava log em disco |
+
+Autostart no login do usuário (atalho na pasta Startup).
+
+## Stack
+
+- C# / WPF / **.NET 8 LTS**
+- Publish: self-contained, `win-x64`, single-file
+- Pasta portátil: `LGOledCompanion.exe` + `config.json` (depois do primeiro Salvar)
+- ImageSharp só para decodificar WebP
+- Log em disco apenas com `Modo_Debug` ligado
