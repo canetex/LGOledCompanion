@@ -4,6 +4,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using LGOledCompanion.Core;
@@ -49,6 +50,14 @@ public partial class SettingsWindow : Window
         _preview_timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
         _preview_timer.Tick += (_, _) => TickPreviewCycle();
         _preview_timer.Start();
+    }
+
+    private void Window_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton == MouseButton.Left)
+        {
+            DragMove();
+        }
     }
 
     private void Nav_Checked(object sender, RoutedEventArgs e)

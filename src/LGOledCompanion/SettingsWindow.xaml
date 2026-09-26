@@ -6,10 +6,14 @@
         Width="900"
         MinHeight="600"
         MinWidth="800"
-        Background="#181818"
+        Background="Transparent"
         Foreground="#FFFFFF"
         WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        AllowsTransparency="True"
         FontFamily="Segoe UI"
+        MouseDown="Window_MouseDown"
         Closed="Window_Closed">
 
     <Window.Resources>
@@ -266,6 +270,7 @@
         </Style>
     </Window.Resources>
 
+    <Border Background="#181818" CornerRadius="8" BorderBrush="#333333" BorderThickness="1" ClipToBounds="True">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="220"/>
@@ -436,4 +441,5 @@
             </Border>
         </Grid>
     </Grid>
+    </Border>
 </Window>
