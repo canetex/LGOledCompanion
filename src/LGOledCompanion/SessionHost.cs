@@ -52,7 +52,7 @@ internal sealed class SessionHost : IDisposable
         {
             Text = "LGOledCompanion",
             Visible = true,
-            Icon = CreateTrayIcon(),
+            Icon = Icon.ExtractAssociatedIcon(Environment.ProcessPath ?? string.Empty) ?? CreateTrayIcon(),
             ContextMenuStrip = menu
         };
         _tray.DoubleClick += (_, _) => OpenSettings();

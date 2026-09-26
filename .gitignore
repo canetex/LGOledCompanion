@@ -4,6 +4,7 @@ obj/
 *.user
 *.suo
 publish/
+dist/
 *.log
 config.json
 SaverImages/

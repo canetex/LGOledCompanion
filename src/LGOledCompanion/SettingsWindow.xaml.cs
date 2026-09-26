@@ -1,7 +1,9 @@
 // SettingsWindow.xaml.cs
 // Top 5: ReloadPreviewPhotos O(n), TickPreviewCycle O(1), ApplyAccent O(1)
 
+using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -43,6 +45,7 @@ public partial class SettingsWindow : Window
         CliPath.Text = config.Caminho_LGTVcli;
         DebugMode.IsChecked = config.Modo_Debug;
         Autostart.IsChecked = AutostartService.IsEnabled();
+        TitleVersion.Text = $"v{Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
         AccentCombo.SelectedIndex = AccentTheme.IndexOf(config.Cor_Destaque);
         ApplyAccent(AccentTheme.Normalize(config.Cor_Destaque));
         UpdateCycleLabels();
@@ -260,6 +263,25 @@ public partial class SettingsWindow : Window
         FadeInLabel.Text = $"Fade-in overlay ({fade_in}s)";
         HoldLabel.Text = $"Transição imagem ({hold}s)";
         CycleTotalLabel.Text = $"Ciclo total: {total.TotalSeconds:0}s (100% → overlay → 0% → overlay → próxima)";
+    }
+
+    private void OpenScreensaver_Click(object sender, RoutedEventArgs e)
+    {
+        OpenWindowsSettings(WindowsSettingsLinks.Screensaver);
+    }
+
+    private void OpenDisplayOff_Click(object sender, RoutedEventArgs e)
+    {
+        OpenWindowsSettings(WindowsSettingsLinks.DisplayOff);
+    }
+
+    private static void OpenWindowsSettings(string uri)
+    {
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = uri,
+            UseShellExecute = true
+        });
     }
 
     private void TestTv_Click(object sender, RoutedEventArgs e)

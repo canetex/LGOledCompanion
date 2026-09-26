@@ -1,0 +1,73 @@
+name: publish
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Test
+        run: dotnet test --nologo --configuration Release
+
+      - name: Publish self-contained exe
+        run: >
+          dotnet publish src/LGOledCompanion/LGOledCompanion.csproj
+          -c Release
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -o publish
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq "tag") {
+            $ver = $env:GITHUB_REF_NAME.TrimStart("v")
+          } else {
+            $ver = "1.0.0"
+          }
+          "value=$ver" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          & $iscc installer\LGOledCompanion.iss `
+            "/DAppPublishDir=$pwd\publish" `
+            "/DMyAppVersion=${{ steps.version.outputs.value }}"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: LGOledCompanion-${{ steps.version.outputs.value }}
+          path: |
+            publish/LGOledCompanion.exe
+            dist/LGOledCompanion-Setup-*.exe
+
+      - name: GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            publish/LGOledCompanion.exe
+            dist/LGOledCompanion-Setup-*.exe
+          generate_release_notes: true

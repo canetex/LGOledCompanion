@@ -61,4 +61,56 @@ public sealed class ConfigStoreTests
             }
         }
     }
+
+    [Fact]
+    public void Save_clamps_idle_overlay_and_cycle_times()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"lgoc-{Guid.NewGuid():N}.json");
+        try
+        {
+            var store = new ConfigStore(path);
+            store.Save(new AppConfig
+            {
+                Tempo_Inatividade = 0,
+                Opacidade_Overlay = 140,
+                Tempo_FadeOut_Overlay = 200,
+                Tempo_FadeIn_Overlay = -4,
+                Tempo_Transicao = 500
+            });
+
+            var loaded = store.Load();
+            Assert.Equal(5, loaded.Tempo_Inatividade);
+            Assert.Equal(90, loaded.Opacidade_Overlay);
+            Assert.Equal(120, loaded.Tempo_FadeOut_Overlay);
+            Assert.Equal(0, loaded.Tempo_FadeIn_Overlay);
+            Assert.Equal(120, loaded.Tempo_Transicao);
+        }
+        finally
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
+
+    [Fact]
+    public void Corrupt_file_returns_defaults_and_does_not_throw()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"lgoc-{Guid.NewGuid():N}.json");
+        try
+        {
+            File.WriteAllText(path, "{ not json");
+            var config = new ConfigStore(path).Load();
+            Assert.Equal(5, config.Tempo_Inatividade);
+            Assert.Equal(30, config.Tempo_Transicao);
+        }
+        finally
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
 }

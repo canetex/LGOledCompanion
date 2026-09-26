@@ -11,7 +11,12 @@
     <AssemblyName>LGOledCompanion</AssemblyName>
     <RootNamespace>LGOledCompanion</RootNamespace>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\LGOledCompanion.Core\LGOledCompanion.Core.csproj" />

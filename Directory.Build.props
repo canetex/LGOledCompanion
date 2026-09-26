@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0</AssemblyVersion>
+    <FileVersion>1.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+    <Company>canetex</Company>
+    <Product>LGOledCompanion</Product>
+    <Copyright>Copyright (c) 2026 canetex</Copyright>
+    <Authors>canetex</Authors>
+  </PropertyGroup>
+</Project>
