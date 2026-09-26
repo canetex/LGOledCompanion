@@ -14,7 +14,8 @@ public sealed class AppConfig
     public string Pasta_Fotos { get; set; } = string.Empty;
     public string Horario_Noite_Inicio { get; set; } = "23:00";
     public string Horario_Noite_Fim { get; set; } = "07:00";
-    public string Device_WebOS { get; set; } = "Device1";
-    public string Caminho_LGTVcli { get; set; } = @"C:\Program Files\LGTV Companion\LGTVcli.exe";
+    public string Tv_Host { get; set; } = string.Empty;
+    public string Tv_ClientKey { get; set; } = string.Empty;
+    public string Tv_Mac { get; set; } = string.Empty;
     public bool Modo_Debug { get; set; }
 }

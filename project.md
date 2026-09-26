@@ -33,20 +33,19 @@ Nome único em exe, bandeja, título da janela e mutex: `LGOledCompanion`.
 ### Dia vs noite
 
 - **Dia:** slideshow em todas as telas ligadas ao Windows, a mesma foto ao mesmo tempo. TV ligada.
-- **Noite:** sem slideshow e sem janela preta. Só `-screenoff` no device WebOS configurado. Os outros monitores ficam como estão.
-- Se o idle atravessar a fronteira do horário, troca na hora. Se ainda estiver idle às 07:00: `-screenon` + slideshow.
+- **Noite:** sem slideshow e sem janela preta. Só `screenoff` na TV pareada. Os outros monitores ficam como estão.
+- Se o idle atravessar a fronteira do horário, troca na hora. Se ainda estiver idle às 07:00: `screenon` + slideshow.
 - Se `Horario_Noite_Inicio` > `Horario_Noite_Fim`, o intervalo atravessa meia-noite (ex.: 23:00–07:00).
 - Se início == fim, o modo noturno está desligado.
 
 ### TV (WebOS)
 
-- [LGTVCompanion](https://github.com/JPersson77/LGTVCompanion) instalado, gerenciamento automático **desligado**.
-- Este app chama `LGTVcli.exe`:
-  - noite / idle noturno: `-screenoff`
-  - wake e resume: `-screenon`
-- O alvo é o **device** do LGTVCompanion (`Device1` ou nome amigável), não o índice de display do Windows.
-- Falha da CLI: 3 retries com backoff, balloon na bandeja, nova tentativa no próximo ciclo de idle. O slideshow de dia não depende da CLI.
-- **Testar TV** (bandeja): `-screenoff` ~3 s e depois `-screenon`. Ignora `Display Required` e settings aberto. Fica desabilitado se o app estiver pausado.
+- Pareamento nativo (SSAP) pelo Settings: IP da TV → **Parear TV** → aceite o pedido na tela.
+- Noite / idle noturno: `turnOffScreen`. Wake e resume: `turnOnScreen`.
+- O alvo é o IP da TV na LAN (`Tv_Host`), não o índice de display do Windows.
+- MAC opcional (`Tv_Mac`) para WOL no `screenon`.
+- Falha SSAP: 3 retries com backoff, balloon na bandeja, nova tentativa no próximo ciclo de idle. O slideshow de dia não depende da TV.
+- **Testar TV** (bandeja): `screenoff` ~3 s e depois `screenon`. Ignora `Display Required` e settings aberto. Fica desabilitado se o app estiver pausado.
 
 ### Slideshow e fotos
 
@@ -77,8 +76,9 @@ Arquivo `config.json` **ao lado do exe**. Só é gravado quando o usuário clica
 | `Pasta_Fotos` | vazio | Pasta recursiva de imagens |
 | `Horario_Noite_Inicio` | 23:00 | Início da janela noturna |
 | `Horario_Noite_Fim` | 07:00 | Fim da janela noturna |
-| `Device_WebOS` | `Device1` | Device do LGTVCompanion |
-| `Caminho_LGTVcli` | `C:\Program Files\LGTV Companion\LGTVcli.exe` | Path do CLI |
+| `Tv_Host` | vazio | IP da TV na LAN |
+| `Tv_ClientKey` | vazio | Chave SSAP após parear |
+| `Tv_Mac` | vazio | MAC para WOL (opcional) |
 | `Modo_Debug` | off | Se on, grava log em disco |
 
 Autostart no login do usuário (atalho na pasta Startup).
@@ -107,4 +107,4 @@ Publicar o exe único self-contained:
 dotnet publish src/LGOledCompanion -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
 ```
 
-O `config.json` só aparece ao lado do exe depois de Salvar no settings. No primeiro uso, abra o ícone da bandeja → Settings, aponte a pasta de fotos e o `LGTVcli.exe`, e desligue o gerenciamento automático do LGTVCompanion.
+O `config.json` só aparece ao lado do exe depois de Salvar no settings. No primeiro uso, abra o ícone da bandeja → Settings, aponte a pasta de fotos, informe o IP da TV e pareie.

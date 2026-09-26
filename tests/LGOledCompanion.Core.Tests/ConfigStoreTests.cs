@@ -23,8 +23,9 @@ public sealed class ConfigStoreTests
         Assert.Equal(string.Empty, config.Pasta_Fotos);
         Assert.Equal("23:00", config.Horario_Noite_Inicio);
         Assert.Equal("07:00", config.Horario_Noite_Fim);
-        Assert.Equal("Device1", config.Device_WebOS);
-        Assert.Equal(@"C:\Program Files\LGTV Companion\LGTVcli.exe", config.Caminho_LGTVcli);
+        Assert.Equal(string.Empty, config.Tv_Host);
+        Assert.Equal(string.Empty, config.Tv_ClientKey);
+        Assert.Equal(string.Empty, config.Tv_Mac);
         Assert.False(config.Modo_Debug);
     }
 
@@ -42,6 +43,8 @@ public sealed class ConfigStoreTests
             config.Tempo_FadeIn_Overlay = 8;
             config.Tempo_Transicao = 25;
             config.Cor_Destaque = "#22D3EE";
+            config.Tv_Host = "192.168.0.10";
+            config.Tv_ClientKey = "paired-key";
             store.Save(config);
 
             var loaded = new ConfigStore(path).Load();
@@ -52,6 +55,8 @@ public sealed class ConfigStoreTests
             Assert.Equal(8, loaded.Tempo_FadeIn_Overlay);
             Assert.Equal(25, loaded.Tempo_Transicao);
             Assert.Equal("#22D3EE", loaded.Cor_Destaque);
+            Assert.Equal("192.168.0.10", loaded.Tv_Host);
+            Assert.Equal("paired-key", loaded.Tv_ClientKey);
         }
         finally
         {

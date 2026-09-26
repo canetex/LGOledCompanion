@@ -120,17 +120,17 @@ internal sealed class SessionHost : IDisposable
         _test_item.Enabled = false;
         try
         {
-            var client = CreateClient();
+            using var client = CreateClient();
             if (!client.ScreenOff())
             {
-                Balloon("Falha ao enviar -screenoff.");
+                Balloon("Falha ao apagar a tela da TV.");
                 return;
             }
 
             await Task.Delay(TimeSpan.FromSeconds(3));
             if (!client.ScreenOn())
             {
-                Balloon("Falha ao enviar -screenon.");
+                Balloon("Falha ao ligar a tela da TV.");
             }
         }
         finally
@@ -151,7 +151,8 @@ internal sealed class SessionHost : IDisposable
         {
             CloseSlideshow();
             _state = SessionState.Desktop;
-            if (!CreateClient().ScreenOn())
+            using var client = CreateClient();
+            if (!client.ScreenOn())
             {
                 Balloon("Falha ao ligar a TV no resume.");
             }
@@ -332,7 +333,8 @@ internal sealed class SessionHost : IDisposable
 
     private void TryScreenOff()
     {
-        if (CreateClient().ScreenOff())
+        using var client = CreateClient();
+        if (client.ScreenOff())
         {
             _state = SessionState.NightScreenOff;
             _logger.Info("screenoff ok");
@@ -341,25 +343,31 @@ internal sealed class SessionHost : IDisposable
 
         _hold_cli_until_activity = true;
         _state = SessionState.Desktop;
-        Balloon("Falha ao enviar -screenoff. Nova tentativa no próximo idle.");
+        Balloon("Falha ao apagar a tela da TV. Nova tentativa no próximo idle.");
         _logger.Info("screenoff failed");
     }
 
     private void TryScreenOn()
     {
-        if (CreateClient().ScreenOn())
+        using var client = CreateClient();
+        if (client.ScreenOn())
         {
             _logger.Info("screenon ok");
             return;
         }
 
-        Balloon("Falha ao enviar -screenon.");
+        Balloon("Falha ao ligar a tela da TV.");
         _logger.Info("screenon failed");
     }
 
-    private LgtvClient CreateClient()
+    private WebOsTvClient CreateClient()
     {
-        return new LgtvClient(_config.Caminho_LGTVcli, _config.Device_WebOS, new ProcessRunner(), new ThreadDelay());
+        return new WebOsTvClient(
+            _config.Tv_Host,
+            _config.Tv_ClientKey,
+            new ClientWebOsSocket(),
+            new ThreadDelay(),
+            _config.Tv_Mac);
     }
 
     private void Balloon(string message)

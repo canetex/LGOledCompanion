@@ -16,11 +16,11 @@ Depois de `Tempo_Inatividade` minutos sem mouse/teclado, abre uma janela fullscr
 
 ### Noite
 
-Sem slideshow e sem janela preta. Só envia `-screenoff` para o device WebOS configurado no LGTVCompanion. Os outros monitores ficam como estão.
+Sem slideshow e sem janela preta. Só envia `screenoff` (SSAP) para a TV pareada. Os outros monitores ficam como estão.
 
 ### Wake e resume
 
-Qualquer input encerra o slideshow na hora. De noite, manda `-screenon`. No resume do Windows, fecha o slideshow se houver e manda `-screenon`.
+Qualquer input encerra o slideshow na hora. De noite, manda `screenon`. No resume do Windows, fecha o slideshow se houver e manda `screenon`.
 
 ---
 
@@ -46,8 +46,8 @@ Qualquer input encerra o slideshow na hora. De noite, manda `-screenon`. No resu
 - Autostart no login (atalho `.lnk` na pasta Startup).
 - `config.json` ao lado do exe, gravado **somente** em Salvar.
 - Log em disco só com `Modo_Debug`.
-- Integração com `LGTVcli.exe`: `-screenoff` / `-screenon`, 3 retries com backoff.
-- “Testar TV”: `-screenoff` ~3 s e `-screenon`. Ignora `Display Required` e Settings aberto. Desabilitado se o app estiver pausado.
+- Integração WebOS nativa (SSAP): pareamento PROMPT, `turnOffScreen` / `turnOnScreen`, WOL opcional, 3 retries com backoff.
+- “Testar TV”: `screenoff` ~3 s e `screenon`. Ignora `Display Required` e Settings aberto. Desabilitado se o app estiver pausado.
 - Fullscreen 4K/high-DPI via conversão pixel → DIP e `SetWindowPos`.
 - Decode de imagem limitado a 3840 px de largura (evita 8K estourar memória).
 
@@ -67,7 +67,7 @@ Qualquer input encerra o slideshow na hora. De noite, manda `-screenon`. No resu
 | `SetWindowPos` + `HWND_TOPMOST` | Posicionar a janela nos pixels reais da tela (4K / DPI). |
 | `WScript.Shell` | Criar atalho de autostart. |
 | System.Text.Json | Ler/gravar `config.json`. |
-| LGTVCompanion / `LGTVcli.exe` | Pairing e websocket WebOS ficam no LGTVCompanion. Este app só chama a CLI. |
+| `ClientWebSocket` | SSAP em `wss://IP:3001` (fallback `ws://IP:3000`). Certificado da TV é aceito. |
 
 SDK pinado em `global.json` (SDK 9.x compilando alvo net8.0). DPI: `PerMonitorV2`.
 
@@ -104,7 +104,9 @@ LGOledCompanion.sln
 | `PhotoPlayback` | Próximo índice carregável (pula arquivo ruim). |
 | `ScreenPlacement` | Pixel bounds → DIP. |
 | `SettingsPreview` | Anterior/próxima na pré-visualização. |
-| `LgtvClient` | `-screenoff` / `-screenon` com 3 tentativas e backoff 200 ms / 400 ms. |
+| `WebOsTvClient` | Parear + `screenoff` / `screenon` (SSAP), 3 tentativas, backoff 200/400 ms. |
+| `WebOsProtocol` | JSON register/request e parse (`registered`, PROMPT, returnValue). |
+| `WakeOnLan` | Pacote 6×FF + MAC×16 na porta UDP 9, se `Tv_Mac` estiver preenchido. |
 | `WebpDecoder` | WebP → PNG bytes + AutoOrient. |
 | `FileLogger` | Append em `log.txt` só se debug estiver on. |
 
@@ -113,14 +115,14 @@ LGOledCompanion.sln
 | Tipo | Responsabilidade |
 | --- | --- |
 | `App` | Mutex `LGOledCompanion`; segundo processo sinaliza `LGOledCompanion.OpenSettings`. |
-| `SessionHost` | Timer 50 ms, idle, política, slideshow, CLI, bandeja. |
+| `SessionHost` | Timer 50 ms, idle, política, slideshow, SSAP, bandeja. |
 | `SlideshowWindow` | Fullscreen por tela, foto + overlay. |
 | `SettingsWindow` | Formulário, sliders, color picker, preview animado. |
 | `PhotoImageLoader` | Decode WPF/`FileStream` ou WebP; `DecodePixelWidth = 3840`. |
 | `NativeIdle` | `GetLastInputInfo` + `NtPowerInformation`. |
 | `AutostartService` | `.lnk` em `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup`. |
 
-A lógica de negócio fica no Core. O host só aplica: abrir/fechar janelas, chamar a CLI, desenhar overlay.
+A lógica de negócio fica no Core. O host só aplica: abrir/fechar janelas, chamar o cliente WebOS, desenhar overlay.
 
 ---
 
@@ -140,7 +142,7 @@ Bloqueios (`blocked`): pausa **ou** Settings aberto **ou** `Display Required`.
 | NightScreenOff | blocked ou ativo | `ScreenOn` |
 | NightScreenOff | idle + dia | `SwitchToDay` (`screenon` + slideshow) |
 
-Falha da CLI no `screenoff`: balloon na bandeja, estado volta para Desktop, `_hold_cli_until_activity` impede novo `screenoff` até o usuário voltar a usar o PC. Slideshow de dia **não** depende da CLI.
+Falha do SSAP no `screenoff`: balloon na bandeja, estado volta para Desktop, `_hold_cli_until_activity` impede novo `screenoff` até o usuário voltar a usar o PC. Slideshow de dia **não** depende da TV.
 
 “Testar TV” ignora bloqueios de Settings/`Display Required`, mas não roda se o app estiver pausado.
 
@@ -188,8 +190,9 @@ Autostart **não** vai no JSON: é presença do atalho `LGOledCompanion.lnk` na 
 | `Pasta_Fotos` | string | `""` | path local | Raiz recursiva das imagens. Vazio/inexistente → fullscreen preto de dia. |
 | `Horario_Noite_Inicio` | string | `23:00` | `HH:mm` | Início da janela noturna. |
 | `Horario_Noite_Fim` | string | `07:00` | `HH:mm` | Fim da janela noturna. |
-| `Device_WebOS` | string | `Device1` | nome do LGTVCompanion | Alvo da CLI, **não** o índice de display do Windows. |
-| `Caminho_LGTVcli` | string | `C:\Program Files\LGTV Companion\LGTVcli.exe` | path do exe | CLI do LGTVCompanion. |
+| `Tv_Host` | string | `""` | IPv4/hostname | IP da TV na LAN. |
+| `Tv_ClientKey` | string | `""` | chave SSAP | Gravada após **Parear TV**. |
+| `Tv_Mac` | string | `""` | `AA:BB:CC:DD:EE:FF` | WOL antes do `screenon`. Opcional. |
 | `Modo_Debug` | bool | `false` | — | Se `true`, grava `log.txt` ao lado do exe. |
 
 Validação no Salvar:
@@ -197,7 +200,7 @@ Validação no Salvar:
 - Idle inválido → 5.
 - Overlay clamp 0–90.
 - Horário inválido → MessageBox, não grava.
-- Device em branco → `Device1`.
+- Host/chave/MAC em branco: TV não controlada até parear.
 - Durações do ciclo vêm dos sliders (0–120). No runtime, valores fora da faixa no JSON são clampados a 0–120.
 
 ### Controles da UI (Settings)
@@ -213,8 +216,9 @@ Validação no Salvar:
 | Botão cor + hex | `Cor_Overlay` |
 | Pasta de fotos + “...” | `Pasta_Fotos` |
 | Noite início / fim | `Horario_Noite_*` |
-| Device WebOS | `Device_WebOS` |
-| LGTVcli.exe + “...” | `Caminho_LGTVcli` |
+| IP da TV | `Tv_Host` |
+| MAC (WOL) | `Tv_Mac` |
+| Chave + Parear TV | `Tv_ClientKey` |
 | Modo debug | `Modo_Debug` |
 | Iniciar com o Windows | atalho Startup |
 | Pré-visualização + Anterior/Próxima | mesma pasta e mesmo ciclo, sem gravar |
@@ -237,20 +241,18 @@ A pré-visualização anima o ciclo em tempo real e avança a foto ao completar.
 
 ---
 
-## 9. TV WebOS / LGTVCompanion
+## 9. TV WebOS (SSAP nativo)
 
-Este app **não** faz pairing, WOL nem websocket. Exige [LGTVCompanion](https://github.com/JPersson77/LGTVCompanion) instalado e o **gerenciamento automático desligado**, para não competir no idle.
+O app fala com a TV direto. Não usa LGTV Companion.
 
-Comandos:
+1. Conecta em `wss://Tv_Host:3001` e, se falhar, `ws://Tv_Host:3000`.
+2. Envia `register` com `pairingType: PROMPT` e manifest unsigned (permissões `CONTROL_POWER`, `CONTROL_TV_SCREEN`, etc.).
+3. No primeiro uso a TV mostra o pedido; ao aceitar, chega `registered` com `client-key` → `Tv_ClientKey`.
+4. Comandos: `ssap://com.webos.service.tvpower/power/turnOffScreen` e `turnOnScreen`.
+5. Se `Tv_Mac` estiver preenchido, o `screenon` manda WOL (UDP 9) antes de conectar.
+6. 3 tentativas; backoff 200 ms e 400 ms.
 
-```
-LGTVcli.exe -screenoff "Device1"
-LGTVcli.exe -screenon "Device1"
-```
-
-Timeout 15 s por tentativa; 3 tentativas; backoff 200 ms e 400 ms. Exit code ≠ 0 ou exceção → falha.
-
-O device é o nome cadastrado no LGTVCompanion (`Device1` ou nome amigável), não o índice do monitor no Windows.
+O alvo é o IP da TV na LAN, não o índice do monitor no Windows.
 
 ---
 
@@ -270,7 +272,7 @@ Com debug off, nada é escrito em disco.
 
 ## 11. Fora do escopo (v1)
 
-- Reimplementar pairing, WOL ou websocket WebOS.
+- Discovery SSDP / lista automática de TVs na rede.
 - Apagar displays pelo Windows.
 - Heurística de processo/janela para detectar mídia (só `Display Required`).
 - Foto diferente por tela.
@@ -285,10 +287,9 @@ Com debug off, nada é escrito em disco.
 
 1. `dotnet run --project src/LGOledCompanion` (ou o exe publicado).
 2. Bandeja → Settings.
-3. Pasta de fotos, `LGTVcli.exe`, device WebOS.
+3. Pasta de fotos e, na aba TV, o IP → Parear TV (aceite na tela).
 4. Ajustar idle, overlay, cor e os 3 sliders do ciclo (ex.: 10 / 10 / 30).
-5. Desligar o auto-manage do LGTVCompanion.
-6. Salvar. O `config.json` aparece ao lado do exe.
-7. Opcional: “Iniciar com o Windows” e “Testar TV”.
+5. Salvar. O `config.json` aparece ao lado do exe.
+6. Opcional: “Iniciar com o Windows” e “Testar TV”.
 
 O horário noturno default no código é 23:00–07:00. Se a TV for usada de madrugada como tela principal, ajuste `Horario_Noite_*` (ex.: 03:00–08:00) para o idle de dia ainda abrir o slideshow.

@@ -7,10 +7,13 @@ App para Windows: slideshow de fotos de dia e proteção da OLED de noite (apaga
 ## Requisitos
 
 - Windows 10/11 64 bits
-- TV LG WebOS (só para o modo noite / Testar TV)
-- [LGTV Companion](https://github.com/JPersson77/LGTVCompanion) instalado, TV pareada e **gerenciamento automático desligado**
+- TV LG WebOS na mesma rede (só para o modo noite / Testar TV)
 
-O slideshow de dia funciona sem a TV/CLI.
+O slideshow de dia funciona sem a TV. Não precisa ter o [LGTV Companion](https://github.com/JPersson77/LGTVCompanion) instalado.
+
+## Créditos
+
+O controle WebOS nativo (pareamento SSAP, `screenoff`/`screenon` e Wake-on-LAN) foi incorporado a partir do [LGTV Companion](https://github.com/JPersson77/LGTVCompanion), de [JPersson77](https://github.com/JPersson77).
 
 ## Instalar
 
@@ -24,8 +27,8 @@ Alternativa sem instalador: baixe `LGOledCompanion.exe` da mesma Release e coloq
 ## Primeiro uso
 
 1. Pasta de fotos (jpg, jpeg, png, webp, bmp).
-2. Device WebOS (`Device1` ou o nome do LGTVCompanion).
-3. Caminho do `LGTVcli.exe` (padrão: `C:\Program Files\LGTV Companion\LGTVcli.exe`).
+2. Em **TV WebOS**: IP da TV → **Parear TV** → aceite o pedido na tela da TV.
+3. Opcional: MAC para Wake-on-LAN se a TV não responder ao `screenon`.
 4. Em **Windows (tela e energia)**:
    - **Abrir configurações do screensaver** → escolha **Nenhum**.
    - **Abrir configurações de desligar o monitor** → **Nunca** (na tomada e, se quiser, na bateria).
@@ -43,7 +46,7 @@ Este app deve ser a única política de idle da máquina. Sleep/hibernate do Win
 | Testar TV | `screenoff` ~3 s e `screenon` |
 | Sair | Encerra o app |
 
-De dia, após o idle: slideshow em todas as telas. De noite: só `-screenoff` na TV configurada. Qualquer input encerra o slideshow; de noite manda `screenon`.
+De dia, após o idle: slideshow em todas as telas. De noite: só `screenoff` na TV pareada. Qualquer input encerra o slideshow; de noite manda `screenon`.
 
 ## Compilar
 

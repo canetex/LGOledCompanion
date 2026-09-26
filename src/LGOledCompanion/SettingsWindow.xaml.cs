@@ -41,8 +41,12 @@ public partial class SettingsWindow : Window
         PhotoFolder.Text = config.Pasta_Fotos;
         NightStart.Text = config.Horario_Noite_Inicio;
         NightEnd.Text = config.Horario_Noite_Fim;
-        WebOsDevice.Text = string.IsNullOrWhiteSpace(config.Device_WebOS) ? "Device1" : config.Device_WebOS;
-        CliPath.Text = config.Caminho_LGTVcli;
+        TvHost.Text = config.Tv_Host;
+        TvMac.Text = config.Tv_Mac;
+        TvClientKey.Text = config.Tv_ClientKey;
+        PairStatus.Text = string.IsNullOrWhiteSpace(config.Tv_ClientKey)
+            ? "Ainda não pareada."
+            : "TV pareada. Use Testar TV para validar.";
         DebugMode.IsChecked = config.Modo_Debug;
         Autostart.IsChecked = AutostartService.IsEnabled();
         TitleVersion.Text = $"v{Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)}";
@@ -164,16 +168,43 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private void BrowseCli_Click(object sender, RoutedEventArgs e)
+    private async void Pair_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new Microsoft.Win32.OpenFileDialog
+        var host = TvHost.Text.Trim();
+        if (string.IsNullOrWhiteSpace(host))
         {
-            Filter = "LGTVcli|LGTVcli.exe|Executáveis|*.exe",
-            FileName = "LGTVcli.exe"
-        };
-        if (dialog.ShowDialog() == true)
+            PairStatus.Text = "Informe o IP da TV.";
+            return;
+        }
+
+        PairButton.IsEnabled = false;
+        PairStatus.Text = "Aceite o pareamento na TV...";
+        var key = TvClientKey.Text.Trim();
+        try
         {
-            CliPath.Text = dialog.FileName;
+            var result = await Task.Run(() =>
+            {
+                using var client = new WebOsTvClient(host, key, new ClientWebOsSocket(), new ThreadDelay());
+                return client.Pair();
+            });
+
+            if (!result.Ok)
+            {
+                PairStatus.Text = "Falha no pareamento. Confira o IP e aceite o pedido na TV.";
+                return;
+            }
+
+            TvClientKey.Text = result.ClientKey;
+            if (!string.IsNullOrWhiteSpace(result.Mac))
+            {
+                TvMac.Text = result.Mac;
+            }
+
+            PairStatus.Text = "Pareada. Clique em Salvar Configurações.";
+        }
+        finally
+        {
+            PairButton.IsEnabled = true;
         }
     }
 
@@ -320,7 +351,6 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        var device = WebOsDevice.Text?.Trim();
         var config = new AppConfig
         {
             Tempo_Inatividade = idle,
@@ -333,8 +363,9 @@ public partial class SettingsWindow : Window
             Pasta_Fotos = PhotoFolder.Text.Trim(),
             Horario_Noite_Inicio = NightStart.Text.Trim(),
             Horario_Noite_Fim = NightEnd.Text.Trim(),
-            Device_WebOS = string.IsNullOrWhiteSpace(device) ? "Device1" : device,
-            Caminho_LGTVcli = CliPath.Text.Trim(),
+            Tv_Host = TvHost.Text.Trim(),
+            Tv_ClientKey = TvClientKey.Text.Trim(),
+            Tv_Mac = TvMac.Text.Trim(),
             Modo_Debug = DebugMode.IsChecked == true
         };
 
