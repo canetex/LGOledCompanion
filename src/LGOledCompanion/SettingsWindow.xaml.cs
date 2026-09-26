@@ -60,6 +60,11 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private void CloseButton_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
     private void Nav_Checked(object sender, RoutedEventArgs e)
     {
         if (GeralPanel is null || VisualPanel is null || TvPanel is null)
