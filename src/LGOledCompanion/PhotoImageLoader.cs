@@ -1,5 +1,5 @@
 // PhotoImageLoader.cs
-// Top 5: Load O(bytes), LoadWebp O(bytes), ApplyExif O(1)
+// Top 5: Load O(bytes), LoadWpf O(bytes), LoadWebp O(bytes), TryExif O(1)
 
 using System.IO;
 using System.Windows.Media;
@@ -10,6 +10,8 @@ namespace LGOledCompanion;
 
 internal static class PhotoImageLoader
 {
+    private const int DecodeWidth = 3840;
+
     public static ImageSource? Load(string path)
     {
         try
@@ -29,56 +31,60 @@ internal static class PhotoImageLoader
 
     private static ImageSource LoadWpf(string path)
     {
+        using var stream = File.OpenRead(path);
         var bitmap = new BitmapImage();
         bitmap.BeginInit();
         bitmap.CacheOption = BitmapCacheOption.OnLoad;
-        bitmap.UriSource = new Uri(path);
+        bitmap.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
+        bitmap.DecodePixelWidth = DecodeWidth;
+        bitmap.StreamSource = stream;
         bitmap.EndInit();
-        bitmap.Freeze();
-        return ApplyExif(bitmap);
+        var oriented = TryExif(bitmap);
+        oriented.Freeze();
+        return oriented;
     }
 
     private static ImageSource LoadWebp(string path)
     {
         using var stream = new MemoryStream(WebpDecoder.ToPngBytes(path));
-
         var bitmap = new BitmapImage();
         bitmap.BeginInit();
         bitmap.CacheOption = BitmapCacheOption.OnLoad;
+        bitmap.DecodePixelWidth = DecodeWidth;
         bitmap.StreamSource = stream;
         bitmap.EndInit();
         bitmap.Freeze();
         return bitmap;
     }
 
-    private static ImageSource ApplyExif(BitmapImage bitmap)
+    private static ImageSource TryExif(BitmapImage bitmap)
     {
-        if (bitmap.Metadata is not BitmapMetadata metadata)
+        try
+        {
+            if (bitmap.Metadata is not BitmapMetadata metadata)
+            {
+                return bitmap;
+            }
+
+            var query = metadata.GetQuery("/app1/ifd/{ushort=274}");
+            if (query is not ushort orientation)
+            {
+                return bitmap;
+            }
+
+            Transform? transform = orientation switch
+            {
+                3 => new RotateTransform(180),
+                6 => new RotateTransform(90),
+                8 => new RotateTransform(270),
+                _ => null
+            };
+
+            return transform is null ? bitmap : new TransformedBitmap(bitmap, transform);
+        }
+        catch
         {
             return bitmap;
         }
-
-        var query = metadata.GetQuery("/app1/ifd/{ushort=274}");
-        if (query is not ushort orientation)
-        {
-            return bitmap;
-        }
-
-        Transform? transform = orientation switch
-        {
-            3 => new RotateTransform(180),
-            6 => new RotateTransform(90),
-            8 => new RotateTransform(270),
-            _ => null
-        };
-
-        if (transform is null)
-        {
-            return bitmap;
-        }
-
-        var rotated = new TransformedBitmap(bitmap, transform);
-        rotated.Freeze();
-        return rotated;
     }
 }

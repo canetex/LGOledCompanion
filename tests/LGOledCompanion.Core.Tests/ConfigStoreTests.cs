@@ -14,8 +14,12 @@ public sealed class ConfigStoreTests
 
         Assert.False(File.Exists(path));
         Assert.Equal(5, config.Tempo_Inatividade);
-        Assert.Equal(10, config.Tempo_Transicao);
+        Assert.Equal(10, config.Tempo_FadeOut_Overlay);
+        Assert.Equal(10, config.Tempo_FadeIn_Overlay);
+        Assert.Equal(30, config.Tempo_Transicao);
         Assert.Equal(0, config.Opacidade_Overlay);
+        Assert.Equal("#000000", config.Cor_Overlay);
+        Assert.Equal("#FF3B7C", config.Cor_Destaque);
         Assert.Equal(string.Empty, config.Pasta_Fotos);
         Assert.Equal("23:00", config.Horario_Noite_Inicio);
         Assert.Equal("07:00", config.Horario_Noite_Fim);
@@ -34,12 +38,20 @@ public sealed class ConfigStoreTests
             var config = store.Load();
             config.Pasta_Fotos = @"D:\Fotos";
             config.Tempo_Inatividade = 8;
+            config.Tempo_FadeOut_Overlay = 12;
+            config.Tempo_FadeIn_Overlay = 8;
+            config.Tempo_Transicao = 25;
+            config.Cor_Destaque = "#22D3EE";
             store.Save(config);
 
             var loaded = new ConfigStore(path).Load();
             Assert.True(File.Exists(path));
             Assert.Equal(@"D:\Fotos", loaded.Pasta_Fotos);
             Assert.Equal(8, loaded.Tempo_Inatividade);
+            Assert.Equal(12, loaded.Tempo_FadeOut_Overlay);
+            Assert.Equal(8, loaded.Tempo_FadeIn_Overlay);
+            Assert.Equal(25, loaded.Tempo_Transicao);
+            Assert.Equal("#22D3EE", loaded.Cor_Destaque);
         }
         finally
         {

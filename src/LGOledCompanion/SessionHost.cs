@@ -1,10 +1,11 @@
 // SessionHost.cs
-// Top 5: Tick O(1), StartSlideshow O(n+s), AdvanceIfNeeded O(1), Apply O(1), ShowCurrent O(s)
+// Top 5: Tick O(1), StartSlideshow O(n+s), ApplyOverlayCycle O(s), Apply O(1), ShowCurrent O(s)
 // n = fotos, s = telas
 
 using System.Drawing;
 using System.IO;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Threading;
 using LGOledCompanion.Core;
 using Microsoft.Win32;
@@ -56,7 +57,7 @@ internal sealed class SessionHost : IDisposable
         };
         _tray.DoubleClick += (_, _) => OpenSettings();
 
-        _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
         _timer.Tick += (_, _) => Tick();
         _timer.Start();
 
@@ -72,7 +73,7 @@ internal sealed class SessionHost : IDisposable
             return;
         }
 
-        _settings = new SettingsWindow(_config, _store, OnConfigSaved);
+        _settings = new SettingsWindow(_config, _store, OnConfigSaved, () => _ = TestTvAsync());
         _settings.Closed += (_, _) => _settings = null;
         _settings.Show();
         _settings.Activate();
@@ -90,6 +91,7 @@ internal sealed class SessionHost : IDisposable
     private void OnConfigSaved(AppConfig config)
     {
         _config = config;
+        _last_advance = DateTime.Now;
         _logger = CreateLogger();
         _logger.Info("config saved");
     }
@@ -200,7 +202,7 @@ internal sealed class SessionHost : IDisposable
 
         if (_state == SessionState.Slideshow)
         {
-            AdvanceIfNeeded();
+            ApplyOverlayCycle();
         }
     }
 
@@ -237,17 +239,7 @@ internal sealed class SessionHost : IDisposable
     private void StartSlideshow()
     {
         CloseSlideshow();
-        var readable = new List<string>();
-        // O(n) n = arquivos listados
-        foreach (var path in PhotoCatalog.ListPaths(_config.Pasta_Fotos))
-        {
-            if (PhotoCatalog.CanOpen(path))
-            {
-                readable.Add(path);
-            }
-        }
-
-        _photos = PhotoCatalog.Shuffle(readable, Random.Shared);
+        _photos = PhotoCatalog.Shuffle(PhotoCatalog.ListPaths(_config.Pasta_Fotos), Random.Shared);
         _photo_index = 0;
         _last_advance = DateTime.Now;
 
@@ -255,12 +247,7 @@ internal sealed class SessionHost : IDisposable
         foreach (var screen in Screen.AllScreens)
         {
             var window = new SlideshowWindow();
-            window.Left = screen.Bounds.Left + 8;
-            window.Top = screen.Bounds.Top + 8;
-            window.Width = 200;
-            window.Height = 200;
-            window.Show();
-            window.WindowState = WindowState.Maximized;
+            window.CoverPixelBounds(screen.Bounds.Left, screen.Bounds.Top, screen.Bounds.Width, screen.Bounds.Height);
             _windows.Add(window);
         }
 
@@ -269,43 +256,66 @@ internal sealed class SessionHost : IDisposable
         _logger.Info($"slideshow start photos={_photos.Count} screens={_windows.Count}");
     }
 
-    private void AdvanceIfNeeded()
+    private void ApplyOverlayCycle()
     {
-        if (_photos.Count == 0)
+        var progress = CurrentCycleProgress();
+        var tint = OverlayTint.Parse(_config.Cor_Overlay);
+        // O(s) s = telas
+        foreach (var window in _windows)
+        {
+            window.SetOverlay(progress.Opacity, tint);
+        }
+
+        if (!progress.Completed)
         {
             return;
         }
 
-        var dwell = TimeSpan.FromSeconds(Math.Max(1, _config.Tempo_Transicao));
-        if (DateTime.Now - _last_advance < dwell)
+        if (_photos.Count > 0)
         {
-            return;
-        }
-
-        _photo_index++;
-        if (_photo_index >= _photos.Count)
-        {
-            _photos = PhotoCatalog.Shuffle(_photos, Random.Shared);
-            _photo_index = 0;
+            _photo_index++;
+            if (_photo_index >= _photos.Count)
+            {
+                _photos = PhotoCatalog.Shuffle(_photos, Random.Shared);
+                _photo_index = 0;
+            }
         }
 
         _last_advance = DateTime.Now;
         ShowCurrent();
     }
 
+    private OverlayCycleProgress CurrentCycleProgress()
+    {
+        return OverlayCycle.At(
+            DateTime.Now - _last_advance,
+            TimeSpan.FromSeconds(Math.Max(0, _config.Tempo_FadeOut_Overlay)),
+            TimeSpan.FromSeconds(Math.Max(0, _config.Tempo_Transicao)),
+            TimeSpan.FromSeconds(Math.Max(0, _config.Tempo_FadeIn_Overlay)),
+            Math.Clamp(_config.Opacidade_Overlay, 0, 90) / 100.0);
+    }
+
     private void ShowCurrent()
     {
-        var source = _photos.Count == 0 ? null : PhotoImageLoader.Load(_photos[_photo_index]);
-        if (source is null && _photos.Count > 0)
+        ImageSource? source = null;
+        if (_photos.Count > 0)
         {
-            return;
+            var index = PhotoPlayback.FindLoadable(_photos, _photo_index, path =>
+            {
+                source = PhotoImageLoader.Load(path);
+                return source is not null;
+            });
+            if (index >= 0)
+            {
+                _photo_index = index;
+            }
         }
 
-        var overlay = Math.Clamp(_config.Opacidade_Overlay, 0, 90) / 100.0;
+        var tint = OverlayTint.Parse(_config.Cor_Overlay);
         // O(s) s = telas
         foreach (var window in _windows)
         {
-            window.ShowPhoto(source, overlay);
+            window.ShowPhoto(source, CurrentCycleProgress().Opacity, tint);
         }
     }
 
@@ -363,7 +373,7 @@ internal sealed class SessionHost : IDisposable
     {
         var bitmap = new Bitmap(16, 16);
         using var graphics = Graphics.FromImage(bitmap);
-        graphics.Clear(Color.FromArgb(20, 20, 20));
+        graphics.Clear(System.Drawing.Color.FromArgb(20, 20, 20));
         graphics.FillEllipse(DrawingBrushes.LimeGreen, 2, 2, 12, 12);
         return Icon.FromHandle(bitmap.GetHicon());
     }
